@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>MediSure – MetaMask Test</title>
+
+  <!-- ethers v5 -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+  <style>
+    button { margin-right: 10px; margin-top: 10px; }
+  </style>
+</head>
+
+<body>
+  <h1>MediSure – MetaMask Test</h1>
+
+  <button id="connectBtn" onclick="connect()">🔌 Connect MetaMask</button>
+  <button onclick="registerMedicine()">📝 Register Medicine</button>
+  <button onclick="verifyMedicine()">🔍 Verify Medicine</button>
+
+  <p id="status">❌ Not Connected</p>
+
+  <script>
+    let provider;
+    let signer;
+    let contract;
+
+    // ✅ Latest deployed contract on Ganache (1337)
+    const CONTRACT_ADDRESS = "0x5b09b5Ed69745BB9804e2Df23f62fcbE3d54448A";
+
+    const ABI = [
+      {
+        "inputs": [
+          { "internalType": "uint256", "name": "_batchNumber", "type": "uint256" },
+          { "internalType": "string", "name": "_name", "type": "string" },
+          { "internalType": "string", "name": "_manufacturer", "type": "string" }
+        ],
+        "name": "registerMedicine",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          { "internalType": "uint256", "name": "_batchNumber", "type": "uint256" }
+        ],
+        "name": "verifyMedicine",
+        "outputs": [
+          { "internalType": "bool", "name": "", "type": "bool" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ];
+
+    async function connect() {
+      try {
+        if (!window.ethereum) {
+          alert("❌ MetaMask not installed");
+          return;
+        }
+
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+
+        // Request wallet connection
+        await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+
+        // Get chainId (HEX → DECIMAL)
+        const chainIdHex = await window.ethereum.request({ method: "eth_chainId" });
+        const chainId = parseInt(chainIdHex, 16);
+
+        console.log("Connected chainId:", chainId);
+
+        // ✅ Auto-switch to Ganache if needed
+        if (chainId !== 1337) {
+          await window.ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: "0x539" }] // 1337 in HEX
+          });
+        }
+
+        contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+
+        const address = await signer.getAddress();
+        console.log("Connected account:", address);
+
+        document.getElementById("status").innerText = "✅ MetaMask Connected";
+        document.getElementById("connectBtn").disabled = true;
+
+      } catch (err) {
+        console.error("Connection error:", err);
+        alert("❌ MetaMask connection failed");
+      }
+    }
+
+    async function registerMedicine() {
+      if (!contract) {
+        alert("❌ Connect MetaMask first");
+        return;
+      }
+
+      try {
+        const tx = await contract.registerMedicine(
+          202,
+          "Paracetamol",
+          "Cipla"
+        );
+
+        console.log("Transaction sent:", tx.hash);
+        await tx.wait();
+
+        alert("✅ Medicine registered successfully");
+      } catch (err) {
+        console.error("Register error:", err);
+        alert("❌ Registration failed (see console)");
+      }
+    }
+
+    async function verifyMedicine() {
+      if (!contract) {
+        alert("❌ Connect MetaMask first");
+        return;
+      }
+
+      try {
+        const result = await contract.verifyMedicine(202);
+        alert("Medicine authentic? → " + result);
+      } catch (err) {
+        console.error("Verify error:", err);
+        alert("❌ Verification failed");
+      }
+    }
+
+    // ✅ Reacts if user switches account or network manually
+    if (window.ethereum) {
+      window.ethereum.on("accountsChanged", () => window.location.reload());
+      window.ethereum.on("chainChanged", () => window.location.reload());
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+# Node modules
+node_modules/
+
+# React build
+frontend/build/
+
+# Truffle build
+blockchain/build/
+
+# Env files
+.env
+
+# Mac files
+.DS_Store
